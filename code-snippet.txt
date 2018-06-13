@@ -1,0 +1,545 @@
+private void dgvRTS_CellMouseDoubleClick(object sender, DataGridViewCellMouseEventArgs e)
+{
+	DateTime dteBusinessDate = null;
+	string strVoucherNumber = null;
+	DataTable dtItin = null;
+	DataTable dtDity = null;
+	string strLastDayLocation = null;
+	string strvouchertypeText = null;
+	string strauditStatus = null;
+	DataTable dtVoucherData = null;
+	
+	try
+	{
+		this.Cursor = Cursors.WaitCursor;
+		intItemSelected = e.RowIndex;
+		if (intItemSelected >= 0)
+		{
+			if ((string) lblRTSHeader.Text == "Audit")
+			{
+				if (dgvRTS.SelectedRows(0).DefaultCellStyle.ForeColor == Color.Red)
+				{
+					Interaction.MsgBox("You cannot Audit a Voucher you computed.", (int) MsgBoxStyle.Information + MsgBoxStyle.OkOnly, "RTS");
+				}
+				else
+				{
+					if (isUsingVoucherLockdown())
+					{
+						if (isVoucherOpen(strSSN, strOrderNumber))
+						{
+							return;
+						}
+						else
+						{
+							gRTSCommands.upd_Orders_VoucherOwner(strSSN, strOrderNumber, gSysUserName);
+						}
+					}
+					strauditStatus = System.Convert.ToString(GetAuditStatus(strSSN, strOrderNumber));
+					if (strauditStatus == "A" || strauditStatus == "B" || strauditStatus == "Y")
+					{
+						
+					}
+					else
+					{
+						MessageBox.Show("This voucher is no longer in audit. The screen has been refreshed.");
+						this.AuditToolStripMenuItem.PerformClick();
+					}
+					m_strSysVoucherType = dgvRTS.SelectedRows(0).Cells(2).Value;
+					strTravelType = dgvRTS.SelectedRows(0).Cells(7).Value;
+					UpdateAuditedBy(strSSN, strOrderNumber);
+					
+					if (((((string) m_strSysVoucherType == "T") || ((string) m_strSysVoucherType == "D")) || ((string) m_strSysVoucherType == "M")) || ((string) m_strSysVoucherType == "S"))
+					{
+						if (m_strSysVoucherType == "S")
+						{
+							dtDity = gRTSQueries.sel_DITY_SSN_PrimaryOrder(strSSN, strOrderNumber);
+							
+							frmPCSExpenses.gstrVoucherNumber = dtDity.Rows(0)["OriginalVoucherNumber"].ToString();
+						}
+						
+						frmPCSExpenses.InitComputation(strSSN, strOrderNumber, m_strSysVoucherType, "Audit");
+						frmPCSExpenses.ShowDialog();
+					}
+					else if ((string) m_strSysVoucherType == "C")
+					{
+						var with_1 = frmCivPCSExpenses;
+						with_1.strCostCompare = "N";
+						with_1.InitComputation(strSSN, strOrderNumber, m_strSysVoucherType, "Audit");
+						with_1.ShowDialog();
+					}
+					else if ((string) m_strSysVoucherType == "5")
+					{
+						if (IsPCSTravelType(strTravelType))
+						{
+							var with_2 = frmPCSPrecomputed;
+							frmPCSPaymentInfo.txtSplitAmount.Text = "";
+							//Load(frmPCSPrecomputed)
+							with_2.strProcessType = "Audit";
+							with_2.SendPersonnel(strSSN, strOrderNumber);
+							with_2.strVoucherType = m_strSysVoucherType;
+							with_2.SetVoucherType(m_strSysVoucherType);
+							with_2.InitForm();
+							with_2.ShowDialog();
+							
+						}
+						else
+						{
+							frmPaymentInfo.txtSplitAmount.Text = "0";
+							frmFindExpense.strProcessType = "Audit";
+							
+							var with_3 = frmVoucherPrecomputed;
+							with_3.strVoucherType = m_strSysVoucherType;
+							with_3.SetVoucherType(m_strSysVoucherType);
+							with_3.SendPersonnel(strSSN, strOrderNumber);
+							with_3.InitForm();
+							with_3.ShowDialog();
+						}
+					}
+					else if ((string) m_strSysVoucherType == "7")
+					{
+						frmFindExpense.strProcessType = "Audit";
+						var with_4 = frmVoucherPrecomputed;
+						with_4.strVoucherType = m_strSysVoucherType;
+						with_4.SetVoucherType(m_strSysVoucherType);
+						with_4.SendPersonnel(strSSN, strOrderNumber);
+						with_4.InitForm();
+						with_4.ShowDialog();
+					}
+					else if ((string) m_strSysVoucherType == "L")
+					{
+						var with_5 = frmPCSPrecomputed;
+						frmPCSPaymentInfo.txtSplitAmount.Text = "";
+						with_5.strProcessType = "Audit";
+						with_5.SendPersonnel(strSSN, strOrderNumber);
+						with_5.strVoucherType = m_strSysVoucherType;
+						with_5.SetVoucherType(m_strSysVoucherType);
+						with_5.InitForm();
+						with_5.ShowDialog();
+					}
+					else if ((string) m_strSysVoucherType == "R")
+					{
+						var with_6 = frmRita;
+						with_6.strVoucherType = m_strSysVoucherType;
+						with_6.strProcessType = "Audit";
+						with_6.strSSN = strSSN;
+						with_6.strPrimaryOrder = strOrderNumber;
+						with_6.SendPersonnel(strSSN, strOrderNumber);
+						with_6.InitForm();
+						with_6.ShowDialog();
+					}
+					else
+					{
+						if (strTravelType == "C")
+						{
+							var with_7 = frmCivPrecomputed;
+							with_7.strProcessType = "Audit";
+							with_7.SetVoucherType("P");
+							with_7.SendPersonnel(strSSN, strOrderNumber);
+							with_7.InitForm();
+							with_7.ShowDialog();
+							
+						}
+						else if (isGroupVoucher(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value.ToString()))
+						{
+							var with_8 = frmExpenses;
+							with_8.GroupVoucher = true;
+							with_8.GroupVoucherID = lngGroupVoucherID;
+							with_8.GroupVoucherPrimaryOrder = strGroupVoucherPrimaryOrder;
+							with_8.GroupVoucherPrimarySSN = strGroupVoucherPrimarySSN;
+							with_8.GroupVoucherCount = lngGroupVoucherCount;
+							with_8.Execute(strSSN, strOrderNumber, m_strSysVoucherType, "Audit", "N");
+							
+						}
+						else
+						{
+							var with_9 = frmExpenses;
+							with_9.GroupVoucher = false;
+							with_9.strVoucherType = m_strSysVoucherType;
+							with_9.Execute(strSSN, strOrderNumber, m_strSysVoucherType, "Audit", "N");
+						}
+					}
+					
+					InitListViewAudit();
+					LoadListViewAudit();
+				}
+			}
+			else if ((string) lblRTSHeader.Text == "To Do")
+			{
+				if (isUsingVoucherLockdown())
+				{
+					if (isVoucherOpen(strSSN, strOrderNumber))
+					{
+						return;
+					}
+					else
+					{
+						gRTSCommands.upd_Orders_VoucherOwner(strSSN, strOrderNumber, gSysUserName);
+					}
+				}
+				
+				m_strSysVoucherType = dgvRTS.SelectedRows(0).Cells(4).Value;
+				strTravelType = dgvRTS.SelectedRows(0).Cells(8).Value;
+				
+				if ((string) m_strSysVoucherType == "5")
+				{
+					if (IsPCSTravelType(strTravelType))
+					{
+						var with_10 = frmPCSPrecomputed;
+						//Load(frmPCSPrecomputed)
+						with_10.SendPersonnel(strSSN, strOrderNumber);
+						with_10.strProcessType = "Computation";
+						with_10.strVoucherType = m_strSysVoucherType;
+						with_10.SetVoucherType(m_strSysVoucherType);
+						with_10.InitForm();
+						with_10.ShowDialog();
+						
+					}
+					else
+					{
+						var with_11 = frmVoucherPrecomputed;
+						with_11.strVoucherType = m_strSysVoucherType;
+						with_11.SetVoucherType(m_strSysVoucherType);
+						with_11.SendPersonnel(strSSN, strOrderNumber);
+						with_11.InitForm();
+						with_11.ShowDialog();
+					}
+				}
+				else if ((string) m_strSysVoucherType == "P")
+				{
+					var with_12 = frmCivPrecomputed;
+					with_12.SendPersonnel(strSSN, strOrderNumber);
+					with_12.strProcessType = "Computation";
+					with_12.strVoucherType = "P";
+					with_12.SetVoucherType(m_strSysVoucherType);
+					with_12.SendPersonnel(strSSN, strOrderNumber);
+					with_12.InitForm();
+					with_12.ShowDialog();
+				}
+				else if ((string) m_strSysVoucherType == "7")
+				{
+					var with_13 = frmVoucherPrecomputed;
+					with_13.SetVoucherType(m_strSysVoucherType);
+					with_13.SendPersonnel(strSSN, strOrderNumber);
+					with_13.InitForm();
+					with_13.ShowDialog();
+				}
+				else if ((string) m_strSysVoucherType == "L")
+				{
+					var with_14 = frmPCSPrecomputed;
+					with_14.strProcessType = "Computation";
+					with_14.SendPersonnel(strSSN, strOrderNumber);
+					with_14.strVoucherType = m_strSysVoucherType;
+					with_14.SetVoucherType(m_strSysVoucherType);
+					with_14.InitForm();
+					with_14.ShowDialog();
+				}
+				else if ((((((string) m_strSysVoucherType == "D") || ((string) m_strSysVoucherType == "T")) || ((string) m_strSysVoucherType == "M")) || ((string) m_strSysVoucherType == "S")) || ((string) m_strSysVoucherType == "1"))
+				{
+					var with_15 = frmPCSExpenses;
+					with_15.strVoucherType = m_strSysVoucherType;
+					with_15.strProcessType = "Computation";
+					with_15.InitComputation(strSSN, strOrderNumber, m_strSysVoucherType, "Computation");
+					with_15.ShowDialog();
+				}
+				else if ((string) m_strSysVoucherType == "C")
+				{
+					var with_16 = frmCivPCSExpenses;
+					with_16.strVoucherType = m_strSysVoucherType;
+					with_16.strProcessType = "Computation";
+					with_16.strCostCompare = "N";
+					with_16.InitComputation(strSSN, strOrderNumber, m_strSysVoucherType, "Computation");
+					with_16.ShowDialog();
+				}
+				else if ((string) m_strSysVoucherType == "R")
+				{
+					var with_17 = frmRita;
+					with_17.strVoucherType = m_strSysVoucherType;
+					with_17.strProcessType = "Computation";
+					with_17.strSSN = strSSN;
+					with_17.strPrimaryOrder = strOrderNumber;
+					with_17.SendPersonnel(strSSN, strOrderNumber);
+					with_17.InitForm();
+					with_17.ShowDialog();
+				}
+				else
+				{
+					if (m_strSysVoucherType == "6" && gstrAllowPartialPayment != "Y")
+					{
+						Interaction.MsgBox("You have selected a Partial Payment Voucher.  RTS cannot let you continue processing this voucher until you contact your RTS Point of Contact and have this setting changed.", MsgBoxStyle.OkOnly, null);
+						return;
+					}
+					if (isGroupVoucher(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value))
+					{
+						var with_18 = frmExpenses;
+						with_18.GroupVoucher = true;
+						with_18.GroupVoucherID = lngGroupVoucherID;
+						with_18.GroupVoucherPrimaryOrder = strGroupVoucherPrimaryOrder;
+						with_18.GroupVoucherPrimarySSN = strGroupVoucherPrimarySSN;
+						with_18.GroupVoucherCount = lngGroupVoucherCount;
+						with_18.Execute(strSSN, strOrderNumber, m_strSysVoucherType, "Computation", "N");
+					}
+					else
+					{
+						var with_19 = frmExpenses;
+						with_19.GroupVoucher = false;
+						with_19.Execute(strSSN, strOrderNumber, m_strSysVoucherType, "Computation", "N");
+					}
+				}
+			}
+			else if ((string) lblRTSHeader.Text == "History")
+			{
+				if (Information.IsDBNull(dgvRTS.SelectedRows(0).Cells(7).Value))
+				{
+					dteBusinessDate = new DateTime(1900, 1, 1);
+				}
+				else
+				{
+					dteBusinessDate = DateTime.Parse(Strings.Format(dgvRTS.SelectedRows(0).Cells(7).Value, "yyyy/MM/dd"));
+				}
+				
+				strVoucherNumber = Strings.Trim(System.Convert.ToString(dgvRTS.SelectedRows(0).Cells(6).Value));
+				m_strSysVoucherType = Strings.Trim(System.Convert.ToString(dgvRTS.SelectedRows(0).Cells(15).Value));
+				
+				if (hasData(VoucherIsInDatabase(dteBusinessDate, strVoucherNumber.Trim())))
+				{
+					if (CreateOPLOCFolderForBusinessDate(dteBusinessDate) != SUCCESS)
+					{
+						Interaction.MsgBox("Cannot Create the folder to print the vouchers, Processing aborted", Constants.vbCritical, null);
+						return;
+						
+					}
+					else
+					{
+						//If DB data exists,
+						dtVoucherData = gRTSQueries.sel_VoucherArchive_All(strVoucherNumber, dteBusinessDate);
+						//write from DB
+						ArchiveOPLOCFromDatabase(dteBusinessDate, strVoucherNumber, dtVoucherData);
+					}
+					
+				}
+				else
+				{
+					if (Strings.Trim(System.Convert.ToString(dgvRTS.SelectedRows(0).Cells(3).Value)) != "Incomplete" && Strings.Trim(System.Convert.ToString(dgvRTS.SelectedRows(0).Cells(3).Value)) != "Ready for EFT disbursement")
+					{
+						Interaction.MsgBox("Voucher: " + strVoucherNumber + " is missing. To view this voucher copy you must rearchive vouchers for this Business date.", Constants.vbOKOnly, null);
+					}
+				}
+				
+				if (File.Exists(getVoucherPathName(dteBusinessDate, strVoucherNumber, VoucherDestination.Other)))
+				{
+					var with_20 = frmVoucherHistory;
+					with_20.SSN = strSSN;
+					with_20.VoucherNumber = strVoucherNumber;
+					with_20.BusinessDate = dteBusinessDate;
+					with_20.Execute();
+					with_20.ShowDialog();
+					
+					DeleteAllTempVouchers(dteBusinessDate);
+					
+				}
+				else
+				{
+					if (dgvRTS.SelectedRows(0).Cells(1).Value == "Interim" || dgvRTS.SelectedRows(0).Cells(1).Value == "Advance" || 
+						dgvRTS.SelectedRows(0).Cells(1).Value == "Voided" || dgvRTS.SelectedRows(0).Cells(1).Value == "Manual Voucher")
+					{
+						
+					}
+					else if (dgvRTS.SelectedRows(0).Cells(1).Value == "PPM")
+					{
+						var with_21 = frmPCSExpenses;
+						with_21.mstrVoucherNumberDeducted = strVoucherNumber;
+						with_21.mdatBusinessDateDeducted = dteBusinessDate;
+						with_21.InitComputation(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "D", "Computation");
+						
+						if (strVoucherNumber.Trim() != "")
+						{
+							with_21.PreviewDITYReport(true);
+						}
+						else
+						{
+							with_21.PreviewDITYReport(false);
+						}
+						
+					}
+					else if (dgvRTS.SelectedRows(0).Cells(1).Value == "PPM Supplemental")
+					{
+						var with_22 = frmPCSExpenses;
+						with_22.mstrVoucherNumberDeducted = strVoucherNumber;
+						with_22.mdatBusinessDateDeducted = dteBusinessDate;
+						with_22.InitComputation(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "S", "Computation");
+						
+						if (strVoucherNumber.Trim() != "")
+						{
+							with_22.PreviewPPMSUPPReport(true);
+						}
+						else
+						{
+							with_22.PreviewPPMSUPPReport(false);
+						}
+						
+					}
+					else if (dgvRTS.SelectedRows(0).Cells(1).Value == "Temporary Lodging Expense - TLE")
+					{
+						var with_23 = frmPCSExpenses;
+						with_23.mstrVoucherNumberDeducted = strVoucherNumber;
+						with_23.mdatBusinessDateDeducted = dteBusinessDate;
+						with_23.InitComputation(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "T", "Computation");
+						with_23.PrintTLEReport(true);
+						
+					}
+					else if (dgvRTS.SelectedRows(0).Cells(1).Value == "Military PCS")
+					{
+						var with_24 = frmPCSExpenses;
+						with_24.mstrVoucherNumberDeducted = strVoucherNumber;
+						with_24.mdatBusinessDateDeducted = dteBusinessDate;
+						with_24.InitComputation(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "M", "Computation");
+						
+						if (strVoucherNumber.Trim() != "")
+						{
+							with_24.PrintTLEReport(true);
+						}
+						else
+						{
+							with_24.PrintTLEReport(false);
+						}
+						
+					}
+					else if (dgvRTS.SelectedRows(0).Cells(1).Value == "Collection")
+					{
+						var with_25 = frmVoucherCashCollect;
+						with_25.GenerateCashCollectionReport(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, dgvRTS.SelectedRows(0).Cells(7).Value); // lvwRTS.Items(intItemSelected).SubItems(5).Text)
+						
+					}
+					else if (dgvRTS.SelectedRows(0).Cells(1).Value == "Civilian PCS")
+					{
+						m_cCivPCSReport = new clsCivPCSReport();
+						
+						var with_26 = m_cCivPCSReport;
+						if (strVoucherNumber.Trim() != "")
+						{
+							with_26.FromHistory = true;
+							with_26.VoucherNumberDeducted = strVoucherNumber;
+							with_26.BusinessDateDeducted = dteBusinessDate;
+							
+						}
+						else
+						{
+							with_26.FromHistory = false;
+						}
+						
+						with_26.m_SSN = strSSN;
+						with_26.m_OrderNumber = dgvRTS.SelectedRows(0).Cells(0).Value;
+						with_26.m_strCostCompare = "N";
+						with_26.bPreview = true;
+						with_26.GetReports();
+						
+						m_cCivPCSReport = null;
+						
+					}
+					else if (dgvRTS.SelectedRows(0).Cells(1).Value == "Civilian RITA")
+					{
+						var with_27 = frmRita;
+						with_27.strVoucherType = "RITA";
+						with_27.strProcessType = "Computation";
+						with_27.strSSN = strSSN;
+						with_27.strPrimaryOrder = dgvRTS.SelectedRows(0).Cells(0).Value;
+						with_27.SendPersonnel(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value);
+						with_27.InitForm();
+						with_27.Compute();
+						
+					}
+					else if (dgvRTS.SelectedRows(0).Cells(1).Value == "Civilian PCS - Precomputed")
+					{
+						m_cCivPCSReport = new clsCivPCSReport();
+						
+						var with_28 = m_cCivPCSReport;
+						if (strVoucherNumber.Trim() != "")
+						{
+							with_28.FromHistory = true;
+							with_28.VoucherNumberDeducted = strVoucherNumber;
+							with_28.BusinessDateDeducted = dteBusinessDate;
+							
+						}
+						else
+						{
+							with_28.FromHistory = false;
+						}
+						
+						with_28.m_SSN = strSSN;
+						with_28.m_OrderNumber = dgvRTS.SelectedRows(0).Cells(0).Value;
+						with_28.m_strCostCompare = "N";
+						with_28.bPreview = true;
+						with_28.GetReports();
+						
+						m_cCivPCSReport = null;
+						
+					}
+					else
+					{
+						dtItin = gRTSQueries.sel_Itinerary_SSN_PrimaryOrder(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "N");
+						
+						DataRow[] foundRows = dtItin.Select("", "TravelDate DESC");
+						
+						if (hasData(foundRows))
+						{
+							if (foundRows[0]["IDL"].ToString() == "E")
+							{
+								strLastDayLocation = System.Convert.ToString(foundRows[0]["TravelLocation"].ToString());
+								
+								if (foundRows.Length > 1)
+								{
+									if (strLastDayLocation != Strings.Trim(System.Convert.ToString(foundRows[1]["TravelLocation"].ToString())))
+									{
+										if (isAreaID(strLastDayLocation) == "O")
+										{
+											if (Strings.Trim(System.Convert.ToString(isIBPCode(strLastDayLocation))) != "")
+											{
+												MessageBox.Show("You will not be able to open this computation sheet from History.  It can only be opened by going into the voucher from Process/Vouchers");
+												strVoucherNumberDeducted = "";
+												dteBusinessDateDeducted = new DateTime(1900, 1, 1);
+												return;
+											}
+										}
+									}
+								}
+							}
+						}
+						
+						gRTSCommands.Compute_Voucher(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "N", "N", "Y");
+						
+						if (strVoucherNumber.Trim() != "")
+						{
+							strVoucherNumberDeducted = strVoucherNumber;
+							dteBusinessDateDeducted = dteBusinessDate;
+							PreviewReport(strSSN, dgvRTS.Rows(intItemSelected).Cells(0).Value, m_strSysVoucherType, "N", true);
+							
+						}
+						else
+						{
+							PreviewReport(strSSN, dgvRTS.Rows(intItemSelected).Cells(0).Value, m_strSysVoucherType, "N", false);
+						}
+					}
+				}
+			}
+			
+			RefreshDataGrid();
+		}
+	}
+	catch (Exception ex)
+	{
+		ErrHandler.WriteError(ex.Message + "\r\n" + "Error in: " + this.GetType().Name +".dgvRTS_CellMouseDoubleClick() - " + ex.Source);
+		MessageBox.Show(System.Convert.ToString(ex.Message));
+	}
+	finally
+	{
+		if (!ReferenceEquals(dtItin, null))
+		{
+			dtItin = null;
+		}
+		if (!ReferenceEquals(dtDity, null))
+		{
+			dtDity = null;
+		}
+		this.Cursor = Cursors.Default;
+	}
+}
