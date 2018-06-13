@@ -1,0 +1,459 @@
+Private Sub dgvRTS_CellMouseDoubleClick(ByVal sender As Object, ByVal e As DataGridViewCellMouseEventArgs) Handles dgvRTS.CellMouseDoubleClick
+        Dim dteBusinessDate As DateTime = Nothing
+        Dim strVoucherNumber As String = Nothing
+        Dim dtItin As DataTable = Nothing
+        Dim dtDity As DataTable = Nothing
+        Dim strLastDayLocation As String = Nothing
+        Dim strvouchertypeText As String = Nothing
+        Dim strauditStatus As String = Nothing
+        Dim dtVoucherData As DataTable = Nothing
+
+        Try
+            Me.Cursor = Cursors.WaitCursor
+            intItemSelected = e.RowIndex
+            If intItemSelected >= 0 Then
+                Select Case lblRTSHeader.Text
+                    Case "Audit"
+                        If dgvRTS.SelectedRows(0).DefaultCellStyle.ForeColor = Color.Red Then
+                            MsgBox("You cannot Audit a Voucher you computed.", MsgBoxStyle.Information + MsgBoxStyle.OkOnly, "RTS")
+                        Else
+                            If isUsingVoucherLockdown() Then
+                                If isVoucherOpen(strSSN, strOrderNumber) Then
+                                    Exit Sub
+                                Else
+                                    gRTSCommands.upd_Orders_VoucherOwner(strSSN, strOrderNumber, gSysUserName)
+                                End If
+                            End If
+                            strauditStatus = GetAuditStatus(strSSN, strOrderNumber)
+                            If strauditStatus = "A" Or strauditStatus = "B" Or strauditStatus = "Y" Then
+
+                            Else
+                                MsgBox("This voucher is no longer in audit. The screen has been refreshed.")
+                                Me.AuditToolStripMenuItem.PerformClick()
+                            End If
+                            m_strSysVoucherType = dgvRTS.SelectedRows(0).Cells(2).Value
+                            strTravelType = dgvRTS.SelectedRows(0).Cells(7).Value
+                            UpdateAuditedBy(strSSN, strOrderNumber)
+
+                            Select Case m_strSysVoucherType
+                                Case "T", "D", "M", "S"
+                                    If m_strSysVoucherType = "S" Then
+                                        dtDity = gRTSQueries.sel_DITY_SSN_PrimaryOrder(strSSN, strOrderNumber)
+
+                                        frmPCSExpenses.gstrVoucherNumber = dtDity.Rows(0)("OriginalVoucherNumber").ToString()
+                                    End If
+
+                                    frmPCSExpenses.InitComputation(strSSN, strOrderNumber, m_strSysVoucherType, "Audit")
+                                    frmPCSExpenses.ShowDialog()
+
+                                Case "C"
+                                    With frmCivPCSExpenses
+                                        .strCostCompare = "N"
+                                        .InitComputation(strSSN, strOrderNumber, m_strSysVoucherType, "Audit")
+                                        .ShowDialog()
+                                    End With
+
+                                Case "5"
+                                    If IsPCSTravelType(strTravelType) Then
+                                        With frmPCSPrecomputed
+                                            frmPCSPaymentInfo.txtSplitAmount.Text = ""
+                                            'Load(frmPCSPrecomputed)
+                                            .strProcessType = "Audit"
+                                            .SendPersonnel(strSSN, strOrderNumber)
+                                            .strVoucherType = m_strSysVoucherType
+                                            .SetVoucherType(m_strSysVoucherType)
+                                            .InitForm()
+                                            .ShowDialog()
+                                        End With
+
+                                    Else
+                                        frmPaymentInfo.txtSplitAmount.Text = "0"
+                                        frmFindExpense.strProcessType = "Audit"
+
+                                        With frmVoucherPrecomputed
+                                            .strVoucherType = m_strSysVoucherType
+                                            .SetVoucherType(m_strSysVoucherType)
+                                            .SendPersonnel(strSSN, strOrderNumber)
+                                            .InitForm()
+                                            .ShowDialog()
+                                        End With
+                                    End If
+
+                                Case "7"
+                                    frmFindExpense.strProcessType = "Audit"
+                                    With frmVoucherPrecomputed
+                                        .strVoucherType = m_strSysVoucherType
+                                        .SetVoucherType(m_strSysVoucherType)
+                                        .SendPersonnel(strSSN, strOrderNumber)
+                                        .InitForm()
+                                        .ShowDialog()
+                                    End With
+
+                                Case "L"
+                                    With frmPCSPrecomputed
+                                        frmPCSPaymentInfo.txtSplitAmount.Text = ""
+                                        .strProcessType = "Audit"
+                                        .SendPersonnel(strSSN, strOrderNumber)
+                                        .strVoucherType = m_strSysVoucherType
+                                        .SetVoucherType(m_strSysVoucherType)
+                                        .InitForm()
+                                        .ShowDialog()
+                                    End With
+
+                                Case "R"
+                                    With frmRita
+                                        .strVoucherType = m_strSysVoucherType
+                                        .strProcessType = "Audit"
+                                        .strSSN = strSSN
+                                        .strPrimaryOrder = strOrderNumber
+                                        .SendPersonnel(strSSN, strOrderNumber)
+                                        .InitForm()
+                                        .ShowDialog()
+                                    End With
+
+                                Case Else
+                                    If strTravelType = "C" Then
+                                        With frmCivPrecomputed
+                                            .strProcessType = "Audit"
+                                            .SetVoucherType("P")
+                                            .SendPersonnel(strSSN, strOrderNumber)
+                                            .InitForm()
+                                            .ShowDialog()
+                                        End With
+
+                                    ElseIf isGroupVoucher(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value.ToString()) Then
+                                        With frmExpenses
+                                            .GroupVoucher = True
+                                            .GroupVoucherID = lngGroupVoucherID
+                                            .GroupVoucherPrimaryOrder = strGroupVoucherPrimaryOrder
+                                            .GroupVoucherPrimarySSN = strGroupVoucherPrimarySSN
+                                            .GroupVoucherCount = lngGroupVoucherCount
+                                            .Execute(strSSN, strOrderNumber, m_strSysVoucherType, "Audit", "N")
+                                        End With
+
+                                    Else
+                                        With frmExpenses
+                                            .GroupVoucher = False
+                                            .strVoucherType = m_strSysVoucherType
+                                            .Execute(strSSN, strOrderNumber, m_strSysVoucherType, "Audit", "N")
+                                        End With
+                                    End If
+                            End Select
+
+                            InitListViewAudit()
+                            LoadListViewAudit()
+                        End If
+
+                    Case "To Do"
+                        If isUsingVoucherLockdown() Then
+                            If isVoucherOpen(strSSN, strOrderNumber) Then
+                                Exit Sub
+                            Else
+                                gRTSCommands.upd_Orders_VoucherOwner(strSSN, strOrderNumber, gSysUserName)
+                            End If
+                        End If
+
+                        m_strSysVoucherType = dgvRTS.SelectedRows(0).Cells(4).Value
+                        strTravelType = dgvRTS.SelectedRows(0).Cells(8).Value
+
+                        Select Case m_strSysVoucherType
+                            Case "5"
+                                If IsPCSTravelType(strTravelType) Then
+                                    With frmPCSPrecomputed
+                                        'Load(frmPCSPrecomputed)
+                                        .SendPersonnel(strSSN, strOrderNumber)
+                                        .strProcessType = "Computation"
+                                        .strVoucherType = m_strSysVoucherType
+                                        .SetVoucherType(m_strSysVoucherType)
+                                        .InitForm()
+                                        .ShowDialog()
+                                    End With
+
+                                Else
+                                    With frmVoucherPrecomputed
+                                        .strVoucherType = m_strSysVoucherType
+                                        .SetVoucherType(m_strSysVoucherType)
+                                        .SendPersonnel(strSSN, strOrderNumber)
+                                        .InitForm()
+                                        .ShowDialog()
+                                    End With
+                                End If
+
+                            Case "P"
+                                With frmCivPrecomputed
+                                    .SendPersonnel(strSSN, strOrderNumber)
+                                    .strProcessType = "Computation"
+                                    .strVoucherType = "P"
+                                    .SetVoucherType(m_strSysVoucherType)
+                                    .SendPersonnel(strSSN, strOrderNumber)
+                                    .InitForm()
+                                    .ShowDialog()
+                                End With
+
+                            Case "7"
+                                With frmVoucherPrecomputed
+                                    .SetVoucherType(m_strSysVoucherType)
+                                    .SendPersonnel(strSSN, strOrderNumber)
+                                    .InitForm()
+                                    .ShowDialog()
+                                End With
+
+                            Case "L"
+                                With frmPCSPrecomputed
+                                    .strProcessType = "Computation"
+                                    .SendPersonnel(strSSN, strOrderNumber)
+                                    .strVoucherType = m_strSysVoucherType
+                                    .SetVoucherType(m_strSysVoucherType)
+                                    .InitForm()
+                                    .ShowDialog()
+                                End With
+
+                            Case "D", "T", "M", "S", "1"
+                                With frmPCSExpenses
+                                    .strVoucherType = m_strSysVoucherType
+                                    .strProcessType = "Computation"
+                                    .InitComputation(strSSN, strOrderNumber, m_strSysVoucherType, "Computation")
+                                    .ShowDialog()
+                                End With
+
+                            Case "C"
+                                With frmCivPCSExpenses
+                                    .strVoucherType = m_strSysVoucherType
+                                    .strProcessType = "Computation"
+                                    .strCostCompare = "N"
+                                    .InitComputation(strSSN, strOrderNumber, m_strSysVoucherType, "Computation")
+                                    .ShowDialog()
+                                End With
+
+                            Case "R"
+                                With frmRita
+                                    .strVoucherType = m_strSysVoucherType
+                                    .strProcessType = "Computation"
+                                    .strSSN = strSSN
+                                    .strPrimaryOrder = strOrderNumber
+                                    .SendPersonnel(strSSN, strOrderNumber)
+                                    .InitForm()
+                                    .ShowDialog()
+                                End With
+
+                            Case Else
+                                If m_strSysVoucherType = "6" And gstrAllowPartialPayment <> "Y" Then
+                                    MsgBox("You have selected a Partial Payment Voucher.  RTS cannot let you continue processing this voucher until you contact your RTS Point of Contact and have this setting changed.", MsgBoxStyle.OkOnly)
+                                    Exit Sub
+                                End If
+                                If isGroupVoucher(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value) Then
+                                    With frmExpenses
+                                        .GroupVoucher = True
+                                        .GroupVoucherID = lngGroupVoucherID
+                                        .GroupVoucherPrimaryOrder = strGroupVoucherPrimaryOrder
+                                        .GroupVoucherPrimarySSN = strGroupVoucherPrimarySSN
+                                        .GroupVoucherCount = lngGroupVoucherCount
+                                        .Execute(strSSN, strOrderNumber, m_strSysVoucherType, "Computation", "N")
+                                    End With
+                                Else
+                                    With frmExpenses
+                                        .GroupVoucher = False
+                                        .Execute(strSSN, strOrderNumber, m_strSysVoucherType, "Computation", "N")
+                                    End With
+                                End If
+                        End Select
+
+                    Case "History"
+                        If IsDBNull(dgvRTS.SelectedRows(0).Cells(7).Value) Then
+                            dteBusinessDate = New DateTime(1900, 1, 1)
+                        Else
+                            dteBusinessDate = CDate(Format(dgvRTS.SelectedRows(0).Cells(7).Value, "yyyy/MM/dd"))
+                        End If
+
+                        strVoucherNumber = Trim(dgvRTS.SelectedRows(0).Cells(6).Value)
+                        m_strSysVoucherType = Trim(dgvRTS.SelectedRows(0).Cells(15).Value)
+
+                        If hasData(VoucherIsInDatabase(dteBusinessDate, Trim(strVoucherNumber))) Then
+                            If CreateOPLOCFolderForBusinessDate(dteBusinessDate) <> SUCCESS Then
+                                MsgBox("Cannot Create the folder to print the vouchers, Processing aborted", vbCritical)
+                                Exit Sub
+
+                            Else
+                                'If DB data exists,
+                                dtVoucherData = gRTSQueries.sel_VoucherArchive_All(strVoucherNumber, dteBusinessDate)
+                                'write from DB
+                                ArchiveOPLOCFromDatabase(dteBusinessDate, strVoucherNumber, dtVoucherData)
+                            End If
+
+                        Else
+                            If Trim(dgvRTS.SelectedRows(0).Cells(3).Value) <> "Incomplete" And Trim(dgvRTS.SelectedRows(0).Cells(3).Value) <> "Ready for EFT disbursement" Then
+                                MsgBox("Voucher: " & strVoucherNumber & " is missing. To view this voucher copy you must rearchive vouchers for this Business date.", vbOKOnly)
+                            End If
+                        End If
+
+                        If File.Exists(getVoucherPathName(dteBusinessDate, strVoucherNumber, VoucherDestination.Other)) Then
+                            With frmVoucherHistory
+                                .SSN = strSSN
+                                .VoucherNumber = strVoucherNumber
+                                .BusinessDate = dteBusinessDate
+                                .Execute()
+                                .ShowDialog()
+
+                                DeleteAllTempVouchers(dteBusinessDate)
+                            End With
+
+                        Else
+                            If dgvRTS.SelectedRows(0).Cells(1).Value = "Interim" Or dgvRTS.SelectedRows(0).Cells(1).Value = "Advance" Or _
+                                dgvRTS.SelectedRows(0).Cells(1).Value = "Voided" Or dgvRTS.SelectedRows(0).Cells(1).Value = "Manual Voucher" Then
+
+                            ElseIf dgvRTS.SelectedRows(0).Cells(1).Value = "PPM" Then
+                                With frmPCSExpenses
+                                    .mstrVoucherNumberDeducted = strVoucherNumber
+                                    .mdatBusinessDateDeducted = CDate(dteBusinessDate)
+                                    .InitComputation(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "D", "Computation")
+
+                                    If Trim(strVoucherNumber) <> "" Then
+                                        .PreviewDITYReport(True)
+                                    Else
+                                        .PreviewDITYReport(False)
+                                    End If
+                                End With
+
+                            ElseIf dgvRTS.SelectedRows(0).Cells(1).Value = "PPM Supplemental" Then
+                                With frmPCSExpenses
+                                    .mstrVoucherNumberDeducted = strVoucherNumber
+                                    .mdatBusinessDateDeducted = CDate(dteBusinessDate)
+                                    .InitComputation(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "S", "Computation")
+
+                                    If Trim(strVoucherNumber) <> "" Then
+                                        .PreviewPPMSUPPReport(True)
+                                    Else
+                                        .PreviewPPMSUPPReport(False)
+                                    End If
+                                End With
+
+                            ElseIf dgvRTS.SelectedRows(0).Cells(1).Value = "Temporary Lodging Expense - TLE" Then
+                                With frmPCSExpenses
+                                    .mstrVoucherNumberDeducted = strVoucherNumber
+                                    .mdatBusinessDateDeducted = CDate(dteBusinessDate)
+                                    .InitComputation(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "T", "Computation")
+                                    .PrintTLEReport(True)
+                                End With
+
+                            ElseIf dgvRTS.SelectedRows(0).Cells(1).Value = "Military PCS" Then
+                                With frmPCSExpenses
+                                    .mstrVoucherNumberDeducted = strVoucherNumber
+                                    .mdatBusinessDateDeducted = CDate(dteBusinessDate)
+                                    .InitComputation(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "M", "Computation")
+
+                                    If Trim(strVoucherNumber) <> "" Then
+                                        .PrintTLEReport(True)
+                                    Else
+                                        .PrintTLEReport(False)
+                                    End If
+                                End With
+
+                            ElseIf dgvRTS.SelectedRows(0).Cells(1).Value = "Collection" Then
+                                With frmVoucherCashCollect
+                                    .GenerateCashCollectionReport(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, dgvRTS.SelectedRows(0).Cells(7).Value) ' lvwRTS.Items(intItemSelected).SubItems(5).Text)
+                                End With
+
+                            ElseIf dgvRTS.SelectedRows(0).Cells(1).Value = "Civilian PCS" Then
+                                m_cCivPCSReport = New clsCivPCSReport
+
+                                With m_cCivPCSReport
+                                    If Trim(strVoucherNumber) <> "" Then
+                                        .FromHistory = True
+                                        .VoucherNumberDeducted = strVoucherNumber
+                                        .BusinessDateDeducted = CDate(dteBusinessDate)
+
+                                    Else
+                                        .FromHistory = False
+                                    End If
+
+                                    .m_SSN = strSSN
+                                    .m_OrderNumber = dgvRTS.SelectedRows(0).Cells(0).Value
+                                    .m_strCostCompare = "N"
+                                    .bPreview = True
+                                    .GetReports()
+                                End With
+
+                                m_cCivPCSReport = Nothing
+
+                            ElseIf dgvRTS.SelectedRows(0).Cells(1).Value = "Civilian RITA" Then
+                                With frmRita
+                                    .strVoucherType = "RITA"
+                                    .strProcessType = "Computation"
+                                    .strSSN = strSSN
+                                    .strPrimaryOrder = dgvRTS.SelectedRows(0).Cells(0).Value
+                                    .SendPersonnel(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value)
+                                    .InitForm()
+                                    .Compute()
+                                End With
+
+                            ElseIf dgvRTS.SelectedRows(0).Cells(1).Value = "Civilian PCS - Precomputed" Then
+                                m_cCivPCSReport = New clsCivPCSReport
+
+                                With m_cCivPCSReport
+                                    If Trim(strVoucherNumber) <> "" Then
+                                        .FromHistory = True
+                                        .VoucherNumberDeducted = strVoucherNumber
+                                        .BusinessDateDeducted = CDate(dteBusinessDate)
+
+                                    Else
+                                        .FromHistory = False
+                                    End If
+
+                                    .m_SSN = strSSN
+                                    .m_OrderNumber = dgvRTS.SelectedRows(0).Cells(0).Value
+                                    .m_strCostCompare = "N"
+                                    .bPreview = True
+                                    .GetReports()
+                                End With
+
+                                m_cCivPCSReport = Nothing
+
+                            Else
+                                dtItin = gRTSQueries.sel_Itinerary_SSN_PrimaryOrder(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "N")
+
+                                Dim foundRows As DataRow() = dtItin.Select("", "TravelDate DESC")
+
+                                If hasData(foundRows) Then
+                                    If foundRows(0)("IDL").ToString() = "E" Then
+                                        strLastDayLocation = foundRows(0)("TravelLocation").ToString()
+
+                                        If foundRows.Length > 1 Then
+                                            If strLastDayLocation <> Trim(foundRows(1)("TravelLocation").ToString()) Then
+                                                If isAreaID(strLastDayLocation) = "O" Then
+                                                    If Trim(isIBPCode(strLastDayLocation)) <> "" Then
+                                                        MsgBox("You will not be able to open this computation sheet from History.  It can only be opened by going into the voucher from Process/Vouchers")
+                                                        strVoucherNumberDeducted = ""
+                                                        dteBusinessDateDeducted = New DateTime(1900, 1, 1)
+                                                        Exit Sub
+                                                    End If
+                                                End If
+                                            End If
+                                        End If
+                                    End If
+                                End If
+
+                                gRTSCommands.Compute_Voucher(strSSN, dgvRTS.SelectedRows(0).Cells(0).Value, "N", "N", "Y")
+
+                                If Trim(strVoucherNumber) <> "" Then
+                                    strVoucherNumberDeducted = strVoucherNumber
+                                    dteBusinessDateDeducted = CDate(dteBusinessDate)
+                                    PreviewReport(strSSN, dgvRTS.Rows(intItemSelected).Cells(0).Value, m_strSysVoucherType, "N", True)
+
+                                Else
+                                    PreviewReport(strSSN, dgvRTS.Rows(intItemSelected).Cells(0).Value, m_strSysVoucherType, "N", False)
+                                End If
+                            End If
+                        End If
+                End Select
+
+                RefreshDataGrid()
+            End If
+        Catch ex As Exception
+            ErrHandler.WriteError(ex.Message & vbCrLf & "Error in: " & Me.GetType().Name & ".dgvRTS_CellMouseDoubleClick() - " & ex.Source)
+            MsgBox(ex.Message)
+        Finally
+            If Not dtItin Is Nothing Then dtItin = Nothing
+            If Not dtDity Is Nothing Then dtDity = Nothing
+            Me.Cursor = Cursors.Default
+        End Try
+    End Sub
