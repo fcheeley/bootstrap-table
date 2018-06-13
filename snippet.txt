@@ -1,22 +1,22 @@
-   private string mstrSSN;
+Public Property strSSN() As String
 
 
-private int intItemSelected;
+        Get
 
 
-private string strOrderNumber;
+            Return mstrSSN '= value
 
 
-private DataTable dtHistoryReport;
+        End Get
 
 
-private string m_strVoucherNumberDeducted;
+        Set(ByVal value As String)
 
 
-private DateTime m_datBusinessDateDeducted;
+            mstrSSN = value
 
 
-private string m_strSysVoucherType;
+        End Set
 
 
-private object m_cCivPCSReport;
+    End Property
