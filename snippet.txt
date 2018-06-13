@@ -1,22 +1,22 @@
-    Private mstrSSN As String
+   private string mstrSSN;
 
 
-    Private intItemSelected As Integer
+private int intItemSelected;
 
 
-    Private strOrderNumber As String
+private string strOrderNumber;
 
 
-    Private dtHistoryReport As DataTable
+private DataTable dtHistoryReport;
 
 
-    Private m_strVoucherNumberDeducted As String
+private string m_strVoucherNumberDeducted;
 
 
-    Private m_datBusinessDateDeducted As DateTime
+private DateTime m_datBusinessDateDeducted;
 
 
-    Private m_strSysVoucherType As String
+private string m_strSysVoucherType;
 
 
-    Private m_cCivPCSReport As Object
+private object m_cCivPCSReport;
